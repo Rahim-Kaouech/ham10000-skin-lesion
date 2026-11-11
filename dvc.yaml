@@ -1,0 +1,55 @@
+stages:
+  prepare:
+    cmd: python -m src.data.prepare
+    deps:
+      - src/data/prepare.py
+      - data/raw
+    params:
+      - seed
+      - data
+    outs:
+      - data/processed/images
+      - data/processed/splits.csv
+    metrics:
+      - data/processed/stats.json:
+          cache: false
+
+  train:
+    cmd: python -m src.models.train
+    deps:
+      - src/data/dataset.py
+      - src/models/architecture.py
+      - src/models/losses.py
+      - src/models/train.py
+      - data/processed/images
+      - data/processed/splits.csv
+    params:
+      - seed
+      - model
+      - train
+    outs:
+      - models/best.pt
+      - models/run_id.txt:
+          cache: false
+    metrics:
+      - models/train_metrics.json:
+          cache: false
+
+  evaluate:
+    cmd: python -m src.models.evaluate
+    deps:
+      - src/models/evaluate.py
+      - src/utils/gradcam.py
+      - models/best.pt
+      - data/processed/splits.csv
+    params:
+      - export
+    outs:
+      - models/model.onnx
+      - models/model_fp16.onnx
+      - models/model_int8.onnx
+      - models/metadata.json:
+          cache: false
+    metrics:
+      - models/test_metrics.json:
+          cache: false

@@ -1,0 +1,47 @@
+# Hyperparamètres du pipeline (lus par src/ et suivis par DVC + MLflow)
+seed: 42
+
+data:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  metadata_csv: HAM10000_metadata.csv
+  resize: 384            # pré-redimensionnement (côté court) pour accélérer l'I/O
+  test_size: 0.15        # proportions approximatives (split groupé par lesion_id)
+  val_size: 0.15
+
+model:
+  name: efficientnetv2_rw_s     # timm : resnet50 (baseline) | efficientnetv2_rw_s | convnext_tiny
+  pretrained: true
+  drop_rate: 0.3
+  drop_path_rate: 0.1
+
+train:
+  img_size: 300
+  batch_size: 32
+  epochs: 30
+  freeze_epochs: 3        # phase 1 : seule la tête est entraînée
+  lr: 3.0e-4              # LR de la tête ; backbone = lr * backbone_lr_mult
+  backbone_lr_mult: 0.1
+  weight_decay: 1.0e-4
+  warmup_epochs: 1
+  loss: focal             # ce | weighted_ce | focal
+  focal_gamma: 2.0
+  label_smoothing: 0.0
+  sampler: none           # none | weighted (ne pas cumuler avec une perte pondérée)
+  randaugment: true
+  mixup_alpha: 0.2
+  cutmix_alpha: 1.0
+  mix_prob: 0.5
+  early_stopping_patience: 7
+  num_workers: 4
+  amp: true
+
+export:
+  opset: 17
+  quantize_int8: true
+  calibration_samples: 200
+  benchmark_runs: 50
+
+mlflow:
+  experiment: ham10000-skin-lesion
+  registered_model: ham10000-classifier

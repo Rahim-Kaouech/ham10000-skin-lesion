@@ -1,0 +1,38 @@
+# Données et artefacts : versionnés par DVC, jamais par Git
+/data/raw/*
+/data/processed/*
+!/data/**/.gitkeep
+!/data/processed/stats.json
+/models/*
+!/models/.gitkeep
+!/models/metadata.json
+!/models/*_metrics.json
+!/models/run_id.txt
+mlruns/
+mlflow_data/
+mlflow.db
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+pytest-*.xml
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/public/samples/*.jpg
+
+# Divers
+.env
+.DS_Store
+.idea/
+.vscode/
+*.log
+rapport/*.aux
+rapport/*.log
+rapport/*.out
+rapport/*.toc

@@ -1,0 +1,43 @@
+# Lancement complet : docker compose up --build
+#   Frontend : http://localhost:3000
+#   API      : http://localhost:8000/docs
+#   MLflow   : http://localhost:5000
+services:
+  backend:
+    build: ./backend
+    image: ham10000-backend:latest
+    container_name: ham10000-backend
+    ports:
+      - "8000:8000"
+    environment:
+      MODEL_DIR: /app/models
+      MODEL_VARIANT: ${MODEL_VARIANT:-fp32}   # fp32 | int8
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+    volumes:
+      - ./models:/app/models:ro                # artefacts récupérés via `dvc pull`
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    image: ham10000-frontend:latest
+    container_name: ham10000-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.17.2
+    container_name: ham10000-mlflow
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+      --serve-artifacts
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlflow_data:/mlflow
+    restart: unless-stopped

@@ -1,0 +1,3 @@
+# Fichiers ignorés par DVC
+.DS_Store
+**/__pycache__

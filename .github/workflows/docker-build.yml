@@ -1,0 +1,66 @@
+name: CD - Build Docker images
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Connexion à GHCR (push uniquement sur main / tags)
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Métadonnées de l'image
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,prefix=
+      - name: Build (et push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.service }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  compose-smoke-test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - name: Valider docker-compose.yml
+        run: docker compose config --quiet
+      - name: Démarrer l'API sans modèle -> /health doit répondre "degraded"
+        run: |
+          mkdir -p models
+          docker compose up -d --build backend
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/health && break; sleep 2
+          done
+          curl -s http://localhost:8000/health | grep -q '"status":"degraded"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -F file=@frontend/index.html http://localhost:8000/predict)" = "503"
+      - if: always()
+        run: docker compose logs backend && docker compose down
